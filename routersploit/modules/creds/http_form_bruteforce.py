@@ -24,9 +24,17 @@ class Exploit(exploits.Exploit):
     """
     __info__ = {
         'name': 'HTTP Form Bruteforce',
-        'author': [
-            'Marcin Bury <marcin.bury[at]reverse-shell.com>'  # routersploit module
-        ]
+        'description': 'Module performs bruteforce attack against HTTP form service. '
+                       'If valid credentials are found, they are displayed to the user.',
+        'authors': [
+            'Marcin Bury <marcin.bury[at]reverse-shell.com>',  # routersploit module
+        ],
+        'references': [
+            '',
+        ],
+        'devices': [
+            'Multi',
+        ],
     }
 
     target = exploits.Option('', 'Target IP address or file with target:port (file://)')
@@ -38,6 +46,7 @@ class Exploit(exploits.Exploit):
     path = exploits.Option('/login.php', 'URL Path')
     form_path = exploits.Option('same', 'same as path or URL Form Path')
     verbosity = exploits.Option('yes', 'Display authentication attempts')
+    stop_on_success = exploits.Option('yes', 'Stop on first valid authentication attempt')
 
     credentials = []
     data = ""
@@ -172,7 +181,9 @@ class Exploit(exploits.Exploit):
                 l = len(r.text)
 
                 if l < self.invalid["min"] or l > self.invalid["max"]:
-                    running.clear()
+                    if boolify(self.stop_on_success):
+                        running.clear()
+
                     print_success("Target: {}:{} {}: Authentication Succeed - Username: '{}' Password: '{}'".format(self.target, self.port, name, user, password), verbose=module_verbosity)
                     self.credentials.append((self.target, self.port, user, password))
                 else:
